@@ -38,7 +38,7 @@ export async function main({ port = process.env.PORT || 3000 } = {}) {
 
   return new Promise((resolve) => {
     const listener = app.listen(port, () => {
-      console.log(`CodePilot AI running on http://localhost:${listener.address().port}`);
+      console.log(`Lazy AI running on http://localhost:${listener.address().port}`);
       resolve(listener);
     });
   });

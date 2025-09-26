@@ -22,7 +22,7 @@ export default function Dashboard() {
   );
 
   useEffect(() => {
-    document.title = "Dashboard — CodePilot AI";
+    document.title = "Dashboard — Lazy AI";
   }, []);
 
   return (

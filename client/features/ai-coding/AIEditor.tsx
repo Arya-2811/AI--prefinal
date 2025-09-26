@@ -3,7 +3,7 @@ import { track } from "@/services/auth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Play, Copy, Download, RotateCcw, Settings, Zap, Cloud, Terminal, Globe, RefreshCw } from "lucide-react";
+import { Play, Copy, Download, RotateCcw, Settings, Zap, Cloud, Terminal, Globe, RefreshCw, Code } from "lucide-react";
 
 const COMMON_DOCS: Record<string, string> = {
   console: "Console provides access to the browser debugging console.",
@@ -103,9 +103,27 @@ export default function AIEditor({ language, initialCode, onCodeChange, onOutput
     }
   }
 
+  function handleCodeChange(newCode: string) {
+    // Apply smart indentation for Python
+    const processedCode = handlePythonKeywordIndent(newCode, taRef.current?.selectionStart || 0);
+    
+    setCode(processedCode);
+    onCodeChange?.(processedCode);
+    
+    // If the code was modified by smart indentation, update cursor position
+    if (processedCode !== newCode && taRef.current) {
+      setTimeout(() => {
+        const textarea = taRef.current;
+        if (textarea) {
+          const cursorPos = textarea.selectionStart;
+          textarea.setSelectionRange(cursorPos, cursorPos);
+        }
+      }, 0);
+    }
+  }
+
   function onChange(v: string) {
-    setCode(v);
-    onCodeChange?.(v); // Notify parent component of code changes
+    handleCodeChange(v);
     const beforeCursor = v.slice(0, taRef.current?.selectionStart ?? v.length);
     const last = beforeCursor.split(/\s|\n|\t/).pop() || "";
     setCursorWord(last);
@@ -124,22 +142,138 @@ export default function AIEditor({ language, initialCode, onCodeChange, onOutput
     const currentIndent = (currentLine.match(/^(\s*)/)?.[1] || '').length;
     const previousIndent = (previousLine.match(/^(\s*)/)?.[1] || '').length;
     
-    // Determine if we should increase indentation
-    const shouldIndent = language === 'python' 
-      ? previousLine.trim().endsWith(':')
-      : previousLine.trim().endsWith('{') || previousLine.trim().endsWith('(') || previousLine.trim().endsWith('[');
+    if (language === 'python') {
+      // Python-specific indentation rules
+      const prevTrimmed = previousLine.trim();
+      const currentTrimmed = currentLine.trim();
+      
+      // Increase indentation after colons (function, class, if, for, while, etc.)
+      const shouldIndent = prevTrimmed.endsWith(':') && 
+        (prevTrimmed.startsWith('def ') || 
+         prevTrimmed.startsWith('class ') ||
+         prevTrimmed.startsWith('if ') ||
+         prevTrimmed.startsWith('elif ') ||
+         prevTrimmed.startsWith('else:') ||
+         prevTrimmed.startsWith('for ') ||
+         prevTrimmed.startsWith('while ') ||
+         prevTrimmed.startsWith('try:') ||
+         prevTrimmed.startsWith('except') ||
+         prevTrimmed.startsWith('finally:') ||
+         prevTrimmed.startsWith('with ') ||
+         prevTrimmed.includes('if __name__'));
+      
+      // Dedent for else, elif, except, finally
+      const shouldDedent = currentTrimmed.startsWith('else:') || 
+                          currentTrimmed.startsWith('elif ') || 
+                          currentTrimmed.startsWith('except') || 
+                          currentTrimmed.startsWith('finally:');
+      
+      if (shouldIndent) {
+        return previousIndent + 4; // 4 spaces for Python
+      } else if (shouldDedent && currentIndent > 0) {
+        return Math.max(0, currentIndent - 4);
+      }
+      
+      return previousIndent;
+    } else {
+      // Other languages (JavaScript, etc.)
+      const shouldIndent = previousLine.trim().endsWith('{') || 
+                          previousLine.trim().endsWith('(') || 
+                          previousLine.trim().endsWith('[');
+      
+      const shouldDedent = currentLine.trim().startsWith('}') || 
+                          currentLine.trim().startsWith(')') || 
+                          currentLine.trim().startsWith(']');
+      
+      if (shouldIndent) {
+        return previousIndent + 2; // 2 spaces for other languages
+      } else if (shouldDedent && currentIndent > 0) {
+        return Math.max(0, currentIndent - 2);
+      }
+      
+      return previousIndent;
+    }
+  }
+
+  // Format Python code with proper indentation
+  function formatPythonCode(code: string): string {
+    if (language !== 'python') return code;
     
-    const shouldDedent = language === 'python'
-      ? currentLine.trim().startsWith('else:') || currentLine.trim().startsWith('elif') || currentLine.trim().startsWith('except:') || currentLine.trim().startsWith('finally:')
-      : currentLine.trim().startsWith('}') || currentLine.trim().startsWith(')') || currentLine.trim().startsWith(']');
+    const lines = code.split('\n');
+    const formattedLines: string[] = [];
+    let currentIndent = 0;
     
-    if (shouldIndent) {
-      return previousIndent + (language === 'python' ? 4 : 2); // 4 spaces for Python, 2 for others
-    } else if (shouldDedent && currentIndent > 0) {
-      return Math.max(0, currentIndent - (language === 'python' ? 4 : 2));
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      const trimmed = line.trim();
+      
+      if (trimmed === '') {
+        formattedLines.push('');
+        continue;
+      }
+      
+      // Dedent for else, elif, except, finally
+      if (trimmed.startsWith('else:') || 
+          trimmed.startsWith('elif ') || 
+          trimmed.startsWith('except') || 
+          trimmed.startsWith('finally:')) {
+        currentIndent = Math.max(0, currentIndent - 4);
+      }
+      
+      // Add proper indentation
+      formattedLines.push(' '.repeat(currentIndent) + trimmed);
+      
+      // Indent after colons
+      if (trimmed.endsWith(':') && 
+          (trimmed.startsWith('def ') || 
+           trimmed.startsWith('class ') ||
+           trimmed.startsWith('if ') ||
+           trimmed.startsWith('elif ') ||
+           trimmed.startsWith('else:') ||
+           trimmed.startsWith('for ') ||
+           trimmed.startsWith('while ') ||
+           trimmed.startsWith('try:') ||
+           trimmed.startsWith('except') ||
+           trimmed.startsWith('finally:') ||
+           trimmed.startsWith('with ') ||
+           trimmed.includes('if __name__'))) {
+        currentIndent += 4;
+      }
     }
     
-    return previousIndent;
+    return formattedLines.join('\n');
+  }
+
+  // Auto-indent when typing Python keywords
+  function handlePythonKeywordIndent(newCode: string, cursorPos: number) {
+    if (language !== 'python') return newCode;
+    
+    const lines = newCode.split('\n');
+    const currentLineIndex = newCode.slice(0, cursorPos).split('\n').length - 1;
+    const currentLine = lines[currentLineIndex];
+    const trimmed = currentLine.trim();
+    
+    // Check if we just typed a keyword that should be dedented
+    const dedentKeywords = ['else:', 'elif ', 'except', 'finally:'];
+    const shouldDedent = dedentKeywords.some(keyword => trimmed.startsWith(keyword));
+    
+    if (shouldDedent && currentLine.startsWith('    ')) {
+      // Find the proper indentation level by looking at previous lines
+      let properIndent = 0;
+      for (let i = currentLineIndex - 1; i >= 0; i--) {
+        const prevLine = lines[i].trim();
+        if (prevLine.startsWith('if ') || prevLine.startsWith('try:') || prevLine.startsWith('for ') || prevLine.startsWith('while ')) {
+          properIndent = (lines[i].match(/^(\s*)/)?.[1] || '').length;
+          break;
+        }
+      }
+      
+      // Replace the current line with proper indentation
+      lines[currentLineIndex] = ' '.repeat(properIndent) + trimmed;
+      return lines.join('\n');
+    }
+    
+    return newCode;
   }
 
   // Handle smart indentation and auto-completion
@@ -149,6 +283,14 @@ export default function AIEditor({ language, initialCode, onCodeChange, onOutput
 
     const { selectionStart, selectionEnd, value } = textarea;
     
+    // Handle Ctrl+Shift+F for formatting Python code
+    if (e.key === "F" && e.ctrlKey && e.shiftKey && language === 'python') {
+      e.preventDefault();
+      const formattedCode = formatPythonCode(value);
+      setCode(formattedCode);
+      return;
+    }
+
     // Handle Tab for suggestions first
     if (e.key === "Tab" && suggestion) { 
       e.preventDefault(); 
@@ -218,35 +360,76 @@ export default function AIEditor({ language, initialCode, onCodeChange, onOutput
       const beforeCursor = value.slice(0, selectionStart);
       const afterCursor = value.slice(selectionEnd);
       const currentLine = beforeCursor.split('\n').pop() || '';
+      const currentLineTrimmed = currentLine.trim();
       
-      // Calculate proper indentation
-      const indentLevel = getIndentationLevel(beforeCursor, selectionStart);
-      const indentStr = ' '.repeat(indentLevel);
-      
-      // Check for auto-closing brackets
-      const openBrackets = ['(', '[', '{'];
-      const closeBrackets = [')', ']', '}'];
-      const lastChar = currentLine.trim().slice(-1);
-      const nextChar = afterCursor.charAt(0);
-      
-      let newValue = '';
-      let cursorOffset = 0;
-      
-      if (openBrackets.includes(lastChar) && closeBrackets.includes(nextChar)) {
-        // Auto-close brackets with proper indentation
-        const extraIndent = language === 'python' ? '    ' : '  ';
-        newValue = beforeCursor + '\n' + indentStr + extraIndent + '\n' + indentStr + afterCursor;
-        cursorOffset = indentStr.length + extraIndent.length + 1;
+      if (language === 'python') {
+        // Python-specific Enter behavior
+        let indentLevel = 0;
+        const lines = beforeCursor.split('\n');
+        
+        // Calculate current indentation
+        const currentIndent = (currentLine.match(/^(\s*)/)?.[1] || '').length;
+        
+        // Check if current line ends with colon (should increase indent)
+        const shouldIncreaseIndent = currentLineTrimmed.endsWith(':') && 
+          (currentLineTrimmed.startsWith('def ') || 
+           currentLineTrimmed.startsWith('class ') ||
+           currentLineTrimmed.startsWith('if ') ||
+           currentLineTrimmed.startsWith('elif ') ||
+           currentLineTrimmed.startsWith('else:') ||
+           currentLineTrimmed.startsWith('for ') ||
+           currentLineTrimmed.startsWith('while ') ||
+           currentLineTrimmed.startsWith('try:') ||
+           currentLineTrimmed.startsWith('except') ||
+           currentLineTrimmed.startsWith('finally:') ||
+           currentLineTrimmed.startsWith('with ') ||
+           currentLineTrimmed.includes('if __name__'));
+        
+        if (shouldIncreaseIndent) {
+          indentLevel = currentIndent + 4;
+        } else {
+          // Maintain current indentation level
+          indentLevel = currentIndent;
+        }
+        
+        const indentStr = ' '.repeat(indentLevel);
+        const newValue = beforeCursor + '\n' + indentStr + afterCursor;
+        const cursorOffset = indentLevel + 1;
+        
+        setCode(newValue);
+        setTimeout(() => {
+          textarea.setSelectionRange(selectionStart + cursorOffset, selectionStart + cursorOffset);
+        }, 0);
       } else {
-        // Normal enter with indentation
-        newValue = beforeCursor + '\n' + indentStr + afterCursor;
-        cursorOffset = indentStr.length + 1;
+        // Other languages behavior
+        const indentLevel = getIndentationLevel(beforeCursor, selectionStart);
+        const indentStr = ' '.repeat(indentLevel);
+        
+        // Check for auto-closing brackets
+        const openBrackets = ['(', '[', '{'];
+        const closeBrackets = [')', ']', '}'];
+        const lastChar = currentLineTrimmed.slice(-1);
+        const nextChar = afterCursor.charAt(0);
+        
+        let newValue = '';
+        let cursorOffset = 0;
+        
+        if (openBrackets.includes(lastChar) && closeBrackets.includes(nextChar)) {
+          // Auto-close brackets with proper indentation
+          const extraIndent = '  ';
+          newValue = beforeCursor + '\n' + indentStr + extraIndent + '\n' + indentStr + afterCursor;
+          cursorOffset = indentStr.length + extraIndent.length + 1;
+        } else {
+          // Normal enter with indentation
+          newValue = beforeCursor + '\n' + indentStr + afterCursor;
+          cursorOffset = indentStr.length + 1;
+        }
+        
+        setCode(newValue);
+        setTimeout(() => {
+          textarea.setSelectionRange(selectionStart + cursorOffset, selectionStart + cursorOffset);
+        }, 0);
       }
-      
-      setCode(newValue);
-      setTimeout(() => {
-        textarea.setSelectionRange(selectionStart + cursorOffset, selectionStart + cursorOffset);
-      }, 0);
       return;
     }
 
@@ -422,7 +605,7 @@ export default function AIEditor({ language, initialCode, onCodeChange, onOutput
 
   // Execute code with input
   async function executeWithInput(stdin: string) {
-    if (executionMode === 'online' && language !== 'javascript') {
+    if ((executionMode === 'online' || executionMode === 'local') && language !== 'javascript') {
       const languageMap: Record<string, string> = {
         python: 'python',
         cpp: 'cpp',
@@ -431,8 +614,22 @@ export default function AIEditor({ language, initialCode, onCodeChange, onOutput
       
       if (languageMap[language]) {
         try {
-          const result = await executePiston(code, languageMap[language], stdin);
-          setOutput(result);
+          // Use direct Python execution for Python, Piston for others
+          if (language === 'python') {
+            const response = await fetch('/api/python/execute', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ code: code, stdin: allInputs })
+            });
+            const result = await response.json();
+            if (result.error) {
+              throw new Error(result.error);
+            }
+            setOutput(result.output || 'Code executed successfully');
+          } else {
+            const result = await executePiston(code, languageMap[language], stdin);
+            setOutput(result);
+          }
         } catch (error) {
           setError(`Execution failed: ${error}`);
         }
@@ -486,7 +683,7 @@ export default function AIEditor({ language, initialCode, onCodeChange, onOutput
     
     try {
       // Choose execution method based on mode and language
-      if (executionMode === 'online' && language !== 'javascript') {
+      if ((executionMode === 'online' || executionMode === 'local') && language !== 'javascript') {
         // Check if code needs input
         if (codeNeedsInput(code, language)) {
           setWaitingForInput(true);
@@ -505,8 +702,22 @@ export default function AIEditor({ language, initialCode, onCodeChange, onOutput
         if (languageMap[language]) {
           try {
             const allInputs = inputHistory.join('\n');
-            const result = await executePiston(code, languageMap[language], allInputs);
-            setOutput(result);
+            // Use direct Python execution for Python, Piston for others
+            if (language === 'python') {
+              const response = await fetch('/api/python/execute', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ code: code, stdin: allInputs })
+              });
+              const result = await response.json();
+              if (result.error) {
+                throw new Error(result.error);
+              }
+              setOutput(result.output || 'Code executed successfully');
+            } else {
+              const result = await executePiston(code, languageMap[language], allInputs);
+              setOutput(result);
+            }
             return;
           } catch (error) {
             // Fallback to simulation if online fails
@@ -877,6 +1088,17 @@ export default function AIEditor({ language, initialCode, onCodeChange, onOutput
           <Button onClick={clearCode} variant="outline" size="sm" className="h-8">
             <RotateCcw className="w-3 h-3 mr-1" />Clear
           </Button>
+          {language === 'python' && (
+            <Button 
+              onClick={() => setCode(formatPythonCode(code))} 
+              variant="outline" 
+              size="sm" 
+              className="h-8"
+              title="Format Python code (Ctrl+Shift+F)"
+            >
+              <Code className="w-3 h-3 mr-1" />Format
+            </Button>
+          )}
         </div>
         <div className="flex items-center gap-2">
           {executionMode === 'online' && language !== 'javascript' && (

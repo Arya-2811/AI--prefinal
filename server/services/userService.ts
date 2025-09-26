@@ -224,7 +224,7 @@ class UserService {
   async initializeAdmin(): Promise<void> {
     const { users } = await this.getCollections();
     
-    const adminEmail = "admin@codepilot.local";
+    const adminEmail = "admin@lazy-ai.local";
     const existingAdmin = await users.findOne({ email: adminEmail });
     
     if (!existingAdmin) {
@@ -240,7 +240,7 @@ class UserService {
       };
       
       await users.insertOne(adminUser);
-      console.log('✅ Admin user created: admin@codepilot.local / admin');
+      console.log('✅ Admin user created: admin@lazy-ai.local / admin');
     }
   }
 

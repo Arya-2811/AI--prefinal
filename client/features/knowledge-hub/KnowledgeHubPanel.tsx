@@ -14,7 +14,7 @@ export default function KnowledgeHubPanel() {
             </div>
             <div>
               <div className="font-medium text-lg">Built-in Coding Practice</div>
-              <div className="text-sm text-foreground/70">20+ curated coding problems with AI-powered editor</div>
+              <div className="text-sm text-foreground/70">10 curated coding problems with AI-powered editor</div>
               <div className="text-xs text-primary mt-1">Arrays • Strings • Trees • Dynamic Programming</div>
             </div>
           </div>

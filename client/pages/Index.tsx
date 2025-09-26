@@ -8,7 +8,7 @@ export default function Index() {
   const { user } = useAuth();
 
   useEffect(() => { 
-    document.title = "CodePilot AI — AI-Powered Coding Assistant"; 
+    document.title = "Lazy AI — AI-Powered Coding Assistant"; 
     
     // Check if URL has #auth hash and scroll to auth section
     if (window.location.hash === '#auth') {
@@ -159,12 +159,12 @@ export default function Index() {
                 <div className="w-3 h-3 rounded-full bg-red-500"></div>
                 <div className="w-3 h-3 rounded-full bg-yellow-500"></div>
                 <div className="w-3 h-3 rounded-full bg-green-500"></div>
-                <span className="ml-4 text-gray-400 text-sm">CodePilot AI Assistant</span>
+                <span className="ml-4 text-gray-400 text-sm">Lazy AI Assistant</span>
               </div>
               
               {/* Code Demo */}
               <div className="p-6 font-mono text-sm">
-                <div className="text-green-400">$ codepilot --start</div>
+                <div className="text-green-400">$ lazy-ai --start</div>
                 <div className="text-blue-400 mt-2">🚀 AI Coding Assistant initialized...</div>
                 <div className="text-gray-300 mt-1">✓ Smart autocomplete enabled</div>
                 <div className="text-gray-300">✓ Real-time collaboration ready</div>
@@ -335,7 +335,7 @@ function AuthCard() {
             )}
             {loading ? "Signing in..." : (mode === "login" ? "Login" : "Create account")}
           </button>
-          <p className="text-xs text-foreground/60">Tip: use admin@codepilot.local / admin for an Admin demo account.</p>
+          <p className="text-xs text-foreground/60">Tip: use admin@lazy-ai.local / admin for an Admin demo account.</p>
         </form>
       )}
     </div>

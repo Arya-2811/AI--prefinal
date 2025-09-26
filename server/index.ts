@@ -33,6 +33,7 @@ import {
   getCodeSuggestions, 
   getComprehensiveAssistance 
 } from "./routes/aiAssistant";
+import { executePythonCode } from "./routes/pythonExecutor";
 import {
   recordSubmission,
   getSubmission,
@@ -122,6 +123,9 @@ export function createServer() {
   app.post("/api/ai/feedback", generateAIFeedback);
   app.post("/api/ai/suggestions", getCodeSuggestions);
   app.post("/api/ai/assistance", getComprehensiveAssistance);
+  
+  // Python Executor API
+  app.post("/api/python/execute", executePythonCode);
   
   // Submissions API
   app.post("/api/submissions", recordSubmission);

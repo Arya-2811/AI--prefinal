@@ -38,7 +38,7 @@ export default function NavBar() {
       <div className="container flex h-16 items-center justify-between">
         <Link to="/" className="flex items-center gap-2">
           <span className="inline-block h-8 w-8 rounded-md bg-gradient-to-br from-primary to-indigo-500" />
-          <span className="text-lg font-bold tracking-tight">CodePilot AI</span>
+          <span className="text-lg font-bold tracking-tight">Lazy AI</span>
         </Link>
         
         <nav className="flex items-center gap-1">

@@ -826,11 +826,15 @@ fn main(){
       compile_timeout: 10000, 
       run_timeout: Math.max(1, Math.floor(timeLimitMs/1000)) 
     };
-    
-    if (language === 'cpp') {
+
+    if (language === 'javascript') {
+      req.files = [{ name: 'index.js', content: this.genJSSource(code, args) }];
+    } else if (language === 'python') {
+      req.files = [{ name: 'main.py', content: code }];
+    } else if (language === 'cpp') {
       req.files = [{ name: 'main.cpp', content: this.genCppSource(code, args) }];
     } else if (language === 'java') {
-      req.files = this.genJavaFiles(code, args);
+      req.files = [{ name: 'Main.java', content: this.genJavaSource(code, args) }];
     } else if (language === 'rust') {
       req.files = [{ name: 'main.rs', content: this.genRustSource(code, args) }];
     } else {
@@ -1050,6 +1054,71 @@ fn main(){
 import json
 import sys
 
+# Helper classes for data structures
+class ListNode:
+    def __init__(self, val=0, next=None):
+        self.val = val
+        self.next = next
+
+class TreeNode:
+    def __init__(self, val=0, left=None, right=None):
+        self.val = val
+        self.left = left
+        self.right = right
+
+def array_to_list(arr):
+    if not arr:
+        return None
+    head = ListNode(arr[0])
+    current = head
+    for i in range(1, len(arr)):
+        current.next = ListNode(arr[i])
+        current = current.next
+    return head
+
+def list_to_array(head):
+    result = []
+    current = head
+    while current:
+        result.append(current.val)
+        current = current.next
+    return result
+
+def array_to_tree(arr):
+    if not arr:
+        return None
+    root = TreeNode(arr[0])
+    queue = [root]
+    i = 1
+    while queue and i < len(arr):
+        node = queue.pop(0)
+        if i < len(arr) and arr[i] is not None:
+            node.left = TreeNode(arr[i])
+            queue.append(node.left)
+        i += 1
+        if i < len(arr) and arr[i] is not None:
+            node.right = TreeNode(arr[i])
+            queue.append(node.right)
+        i += 1
+    return root
+
+def create_list_with_cycle(arr, cycle_pos):
+    if not arr:
+        return None
+    head = ListNode(arr[0])
+    current = head
+    nodes = [head]
+    
+    for i in range(1, len(arr)):
+        current.next = ListNode(arr[i])
+        current = current.next
+        nodes.append(current)
+    
+    if cycle_pos >= 0 and cycle_pos < len(nodes):
+        current.next = nodes[cycle_pos]
+    
+    return head
+
 ${code}
 
 def __main():
@@ -1060,18 +1129,56 @@ def __main():
         func = None
         if 'solve' in globals(): func = solve
         elif 'max_sub_array' in globals(): func = max_sub_array
+        elif 'maxSubArray' in globals(): func = maxSubArray
         elif 'two_sum' in globals(): func = two_sum
+        elif 'twoSum' in globals(): func = twoSum
         elif 'is_valid' in globals(): func = is_valid
+        elif 'isValid' in globals(): func = isValid
         elif 'climb_stairs' in globals(): func = climb_stairs
+        elif 'climbStairs' in globals(): func = climbStairs
+        elif 'reverse_list' in globals(): func = reverse_list
+        elif 'reverseList' in globals(): func = reverseList
+        elif 'search' in globals(): func = search
+        elif 'max_profit' in globals(): func = max_profit
+        elif 'maxProfit' in globals(): func = maxProfit
+        elif 'inorder_traversal' in globals(): func = inorder_traversal
+        elif 'inorderTraversal' in globals(): func = inorderTraversal
+        elif 'merge' in globals(): func = merge
+        elif 'has_cycle' in globals(): func = has_cycle
+        elif 'hasCycle' in globals(): func = hasCycle
         
         if func is None:
-            print(json.dumps({"__error": "No recognized function found (solve, max_sub_array, two_sum, is_valid, climb_stairs)"}))
+            print(json.dumps({"__error": "No recognized function found. Expected one of: solve, max_sub_array, two_sum, is_valid, climb_stairs, reverse_list, search, max_profit, inorder_traversal, merge, has_cycle"}))
             return
-            
-        if type(args) is list:
-            res = func(*args)
+        
+        # Process input based on function type
+        processed_args = args
+        
+        # Special handling for tree problems
+        if (func.__name__ == 'inorder_traversal' or func.__name__ == 'inorderTraversal') and len(args) > 0 and isinstance(args[0], list):
+            processed_args = [array_to_tree(args[0])]
+        
+        # Special handling for linked list problems
+        elif (func.__name__ == 'reverse_list' or func.__name__ == 'reverseList') and len(args) > 0 and isinstance(args[0], list):
+            processed_args = [array_to_list(args[0])]
+        
+        # Special handling for cycle detection problems
+        elif (func.__name__ == 'has_cycle' or func.__name__ == 'hasCycle') and len(args) >= 2 and isinstance(args[0], list) and isinstance(args[1], int):
+            processed_args = [create_list_with_cycle(args[0], args[1])]
+        
+        # Call the function
+        if isinstance(processed_args, list):
+            res = func(*processed_args)
         else:
-            res = func(args)
+            res = func(processed_args)
+        
+        # Convert result back if needed
+        if hasattr(res, 'val'):  # LinkedList result
+            if res is None:
+                res = []
+            else:
+                res = list_to_array(res)
+        
         print(json.dumps({"__result": res}))
     except Exception as e:
         print(json.dumps({"__error": str(e)}))
@@ -1092,6 +1199,345 @@ __main()
         if (out.__error) return resolve({ error: out.__error, timeMs });
         return resolve({ result: out.__result, timeMs });
       });
+    });
+  }
+
+  private genPythonWrapper(code: string, args: any): string {
+    return `
+import json
+import sys
+
+# Helper classes for data structures
+class ListNode:
+    def __init__(self, val=0, next=None):
+        self.val = val
+        self.next = next
+
+class TreeNode:
+    def __init__(self, val=0, left=None, right=None):
+        self.val = val
+        self.left = left
+        self.right = right
+
+def array_to_list(arr):
+    if not arr:
+        return None
+    head = ListNode(arr[0])
+    current = head
+    for i in range(1, len(arr)):
+        current.next = ListNode(arr[i])
+        current = current.next
+    return head
+
+def list_to_array(head):
+    result = []
+    current = head
+    while current:
+        result.append(current.val)
+        current = current.next
+    return result
+
+def array_to_tree(arr):
+    if not arr:
+        return None
+    root = TreeNode(arr[0])
+    queue = [root]
+    i = 1
+    while queue and i < len(arr):
+        node = queue.pop(0)
+        if i < len(arr) and arr[i] is not None:
+            node.left = TreeNode(arr[i])
+            queue.append(node.left)
+        i += 1
+        if i < len(arr) and arr[i] is not None:
+            node.right = TreeNode(arr[i])
+            queue.append(node.right)
+        i += 1
+    return root
+
+def create_list_with_cycle(arr, cycle_pos):
+    if not arr:
+        return None
+    head = ListNode(arr[0])
+    current = head
+    nodes = [head]
+    
+    for i in range(1, len(arr)):
+        current.next = ListNode(arr[i])
+        current = current.next
+        nodes.append(current)
+    
+    if cycle_pos >= 0 and cycle_pos < len(nodes):
+        current.next = nodes[cycle_pos]
+    
+    return head
+
+${code}
+
+def main():
+    try:
+        args = ${JSON.stringify(args)}
+        
+        # Try to find the appropriate function
+        func = None
+        if 'solve' in globals(): func = solve
+        elif 'max_sub_array' in globals(): func = max_sub_array
+        elif 'maxSubArray' in globals(): func = maxSubArray
+        elif 'two_sum' in globals(): func = two_sum
+        elif 'twoSum' in globals(): func = twoSum
+        elif 'is_valid' in globals(): func = is_valid
+        elif 'isValid' in globals(): func = isValid
+        elif 'climb_stairs' in globals(): func = climb_stairs
+        elif 'climbStairs' in globals(): func = climbStairs
+        elif 'reverse_list' in globals(): func = reverse_list
+        elif 'reverseList' in globals(): func = reverseList
+        elif 'search' in globals(): func = search
+        elif 'max_profit' in globals(): func = max_profit
+        elif 'maxProfit' in globals(): func = maxProfit
+        elif 'inorder_traversal' in globals(): func = inorder_traversal
+        elif 'inorderTraversal' in globals(): func = inorderTraversal
+        elif 'merge' in globals(): func = merge
+        elif 'has_cycle' in globals(): func = has_cycle
+        elif 'hasCycle' in globals(): func = hasCycle
+        
+        if func is None:
+            print(json.dumps({"__error": "No recognized function found"}))
+            return
+        
+        # Process input based on function type
+        processed_args = args
+        
+        # Special handling for tree problems
+        if (func.__name__ == 'inorder_traversal' or func.__name__ == 'inorderTraversal') and len(args) > 0 and isinstance(args[0], list):
+            processed_args = [array_to_tree(args[0])]
+        
+        # Special handling for linked list problems
+        elif (func.__name__ == 'reverse_list' or func.__name__ == 'reverseList') and len(args) > 0 and isinstance(args[0], list):
+            processed_args = [array_to_list(args[0])]
+        
+        # Special handling for cycle detection problems
+        elif (func.__name__ == 'has_cycle' or func.__name__ == 'hasCycle') and len(args) >= 2 and isinstance(args[0], list) and isinstance(args[1], int):
+            processed_args = [create_list_with_cycle(args[0], args[1])]
+        
+        # Call the function
+        if isinstance(processed_args, list):
+            res = func(*processed_args)
+        else:
+            res = func(processed_args)
+        
+        # Convert result back if needed
+        if hasattr(res, 'val'):  # LinkedList result
+            if res is None:
+                res = []
+            else:
+                res = list_to_array(res)
+        
+        print(json.dumps({"__result": res}))
+    except Exception as e:
+        print(json.dumps({"__error": str(e)}))
+
+main()
+`;
+  }
+
+  private async runPythonLocal(code: string, args: any, timeLimitMs: number): Promise<{result?: any, error?: string, timeMs?: number}> {
+    return new Promise((resolve) => {
+      const start = Date.now();
+      const pythonCode = this.genPythonWrapper(code, args);
+      
+      // Try different Python commands
+      const pythonCommands = ['python3', 'python', 'py'];
+      let commandIndex = 0;
+      
+      const tryNextCommand = () => {
+        if (commandIndex >= pythonCommands.length) {
+          return resolve({ 
+            error: 'Python not found. Please install Python and ensure it is in your PATH.', 
+            timeMs: Date.now() - start 
+          });
+        }
+        
+        const pythonCmd = pythonCommands[commandIndex];
+        commandIndex++;
+        
+        const child = execFile(pythonCmd, ['-c', pythonCode], { 
+          timeout: timeLimitMs,
+          encoding: 'utf8'
+        }, (error, stdout, stderr) => {
+          const timeMs = Date.now() - start;
+          
+          if (error) {
+            if ((error as any).code === 'ENOENT') {
+              // Command not found, try next one
+              return tryNextCommand();
+            }
+            if ((error as any).killed) {
+              return resolve({ error: 'Time Limit Exceeded', timeMs });
+            }
+            return resolve({ error: stderr || error.message, timeMs });
+          }
+          
+          try {
+            const output = stdout.trim();
+            const result = JSON.parse(output);
+            
+            if (result.__error) {
+              return resolve({ error: result.__error, timeMs });
+            }
+            
+            return resolve({ result: result.__result, timeMs });
+          } catch (parseError) {
+            return resolve({ error: stderr || stdout || 'Runtime Error', timeMs });
+          }
+        });
+      };
+      
+      tryNextCommand();
+    });
+  }
+
+  private async runPythonWithPiston(code: string, args: any, timeLimitMs: number): Promise<{result?: any, error?: string, timeMs?: number}> {
+    const pythonWrapper = `
+import json
+import sys
+
+# Helper classes for data structures
+class ListNode:
+    def __init__(self, val=0, next=None):
+        self.val = val
+        self.next = next
+
+class TreeNode:
+    def __init__(self, val=0, left=None, right=None):
+        self.val = val
+        self.left = left
+        self.right = right
+
+def array_to_list(arr):
+    if not arr:
+        return None
+    head = ListNode(arr[0])
+    current = head
+    for i in range(1, len(arr)):
+        current.next = ListNode(arr[i])
+        current = current.next
+    return head
+
+def list_to_array(head):
+    result = []
+    current = head
+    while current:
+        result.append(current.val)
+        current = current.next
+    return result
+
+def array_to_tree(arr):
+    if not arr:
+        return None
+    root = TreeNode(arr[0])
+    queue = [root]
+    i = 1
+    while queue and i < len(arr):
+        node = queue.pop(0)
+        if i < len(arr) and arr[i] is not None:
+            node.left = TreeNode(arr[i])
+            queue.append(node.left)
+        i += 1
+        if i < len(arr) and arr[i] is not None:
+            node.right = TreeNode(arr[i])
+            queue.append(node.right)
+        i += 1
+    return root
+
+def create_list_with_cycle(arr, cycle_pos):
+    if not arr:
+        return None
+    head = ListNode(arr[0])
+    current = head
+    nodes = [head]
+    
+    for i in range(1, len(arr)):
+        current.next = ListNode(arr[i])
+        current = current.next
+        nodes.append(current)
+    
+    if cycle_pos >= 0 and cycle_pos < len(nodes):
+        current.next = nodes[cycle_pos]
+    
+    return head
+
+${code}
+
+def main():
+    try:
+        args = ${JSON.stringify(args)}
+        
+        # Try to find the appropriate function
+        func = None
+        if 'solve' in globals(): func = solve
+        elif 'max_sub_array' in globals(): func = max_sub_array
+        elif 'maxSubArray' in globals(): func = maxSubArray
+        elif 'two_sum' in globals(): func = two_sum
+        elif 'twoSum' in globals(): func = twoSum
+        elif 'is_valid' in globals(): func = is_valid
+        elif 'isValid' in globals(): func = isValid
+        elif 'climb_stairs' in globals(): func = climb_stairs
+        elif 'climbStairs' in globals(): func = climbStairs
+        elif 'reverse_list' in globals(): func = reverse_list
+        elif 'reverseList' in globals(): func = reverseList
+        elif 'search' in globals(): func = search
+        elif 'max_profit' in globals(): func = max_profit
+        elif 'maxProfit' in globals(): func = maxProfit
+        elif 'inorder_traversal' in globals(): func = inorder_traversal
+        elif 'inorderTraversal' in globals(): func = inorderTraversal
+        elif 'merge' in globals(): func = merge
+        elif 'has_cycle' in globals(): func = has_cycle
+        elif 'hasCycle' in globals(): func = hasCycle
+        
+        if func is None:
+            print(json.dumps({"__error": "No recognized function found"}))
+            return
+        
+        # Process input based on function type
+        processed_args = args
+        
+        # Special handling for tree problems
+        if (func.__name__ == 'inorder_traversal' or func.__name__ == 'inorderTraversal') and len(args) > 0 and isinstance(args[0], list):
+            processed_args = [array_to_tree(args[0])]
+        
+        # Special handling for linked list problems
+        elif (func.__name__ == 'reverse_list' or func.__name__ == 'reverseList') and len(args) > 0 and isinstance(args[0], list):
+            processed_args = [array_to_list(args[0])]
+        
+        # Special handling for cycle detection problems
+        elif (func.__name__ == 'has_cycle' or func.__name__ == 'hasCycle') and len(args) >= 2 and isinstance(args[0], list) and isinstance(args[1], int):
+            processed_args = [create_list_with_cycle(args[0], args[1])]
+        
+        # Call the function
+        if isinstance(processed_args, list):
+            res = func(*processed_args)
+        else:
+            res = func(processed_args)
+        
+        # Convert result back if needed
+        if hasattr(res, 'val'):  # LinkedList result
+            if res is None:
+                res = []
+            else:
+                res = list_to_array(res)
+        
+        print(json.dumps({"__result": res}))
+    except Exception as e:
+        print(json.dumps({"__error": str(e)}))
+
+main()
+`;
+
+    return this.runPiston({ 
+      language: 'python', 
+      code: pythonWrapper, 
+      args: [], 
+      timeLimitMs 
     });
   }
 
@@ -1211,7 +1657,8 @@ __main()
       if (language === 'javascript') {
         single = await this.runNodeTest(code, testInput, timeLimitMs);
       } else if (language === 'python') {
-        single = await this.runPythonTest(code, testInput, timeLimitMs);
+        single = await this.runPythonLocal(code, testInput, timeLimitMs);
+        single.timeMs = Date.now() - start;
       } else if (language === 'cpp' || language === 'java' || language === 'rust') {
         single = await this.runPiston({ language, code, args: testInput, timeLimitMs });
         single.timeMs = Date.now() - start;

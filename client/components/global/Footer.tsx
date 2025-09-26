@@ -3,7 +3,7 @@ export default function Footer() {
     <footer className="border-t">
       <div className="container py-8 text-sm text-foreground/70 flex flex-col md:flex-row gap-2 items-center justify-between">
         <p>
-          © {new Date().getFullYear()} CodePilot AI — AI-Powered Coding Assistant
+          © {new Date().getFullYear()} Lazy AI — AI-Powered Coding Assistant
         </p>
         <p className="flex items-center gap-3">
           <span>Built with</span>
