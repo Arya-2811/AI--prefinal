@@ -25,7 +25,24 @@ import {
   getUserDashboard 
 } from "./routes/userProfile";
 import { getUserStats, cleanupSessions } from "./routes/userStats";
-import { judgeSubmission, getSubmissionResult } from "./routes/judge";
+import { judgeSubmission, getSubmissionResult, testEnhancedJudge } from "./routes/judge";
+import { 
+  getAIHints, 
+  analyzeCode, 
+  generateAIFeedback, 
+  getCodeSuggestions, 
+  getComprehensiveAssistance 
+} from "./routes/aiAssistant";
+import {
+  recordSubmission,
+  getSubmission,
+  getUserSubmissions,
+  getQuestionStats as getSubmissionQuestionStats,
+  getUserProgress as getSubmissionUserProgress,
+  getLeaderboard as getSubmissionLeaderboard,
+  getBestSubmission,
+  cleanupSubmissions
+} from "./routes/submissions";
 import { connectToDatabase } from "./config/database";
 
 export function createServer() {
@@ -97,16 +114,39 @@ export function createServer() {
   // Online Judge API
   app.post("/api/judge/submit", judgeSubmission);
   app.get("/api/judge/result/:id", getSubmissionResult);
+  app.post("/api/judge/test-enhanced", testEnhancedJudge);
+  
+  // AI Assistant API
+  app.post("/api/ai/hints", getAIHints);
+  app.post("/api/ai/analyze", analyzeCode);
+  app.post("/api/ai/feedback", generateAIFeedback);
+  app.post("/api/ai/suggestions", getCodeSuggestions);
+  app.post("/api/ai/assistance", getComprehensiveAssistance);
+  
+  // Submissions API
+  app.post("/api/submissions", recordSubmission);
+  app.get("/api/submissions/:submissionId", getSubmission);
+  app.get("/api/submissions/user/:userId", getUserSubmissions);
+  app.get("/api/submissions/question/:questionId/stats", getSubmissionQuestionStats);
+  app.get("/api/submissions/user/:userId/progress", getSubmissionUserProgress);
+  app.get("/api/submissions/leaderboard", getSubmissionLeaderboard);
+  app.get("/api/submissions/user/:userId/question/:questionId/best", getBestSubmission);
+  app.post("/api/admin/submissions/cleanup", cleanupSubmissions);
 
   // Initialize database connection and setup
   connectToDatabase()
-    .then(async () => {
-      // Initialize admin user
+    .then(async (database) => {
+      // Initialize services
       try {
         const { userService } = await import("./services/userService");
+        const { submissionService } = await import("./services/submissionService");
+        
         await userService.initializeAdmin();
+        await submissionService.initialize(database);
+        
+        console.log('✅ All services initialized successfully');
       } catch (error) {
-        console.error('Error initializing admin user:', error);
+        console.error('Error initializing services:', error);
       }
     })
     .catch(console.error);

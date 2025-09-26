@@ -21,8 +21,8 @@ const questionTestCases = [
       },
       {
         input: "[1,5,3,7,2], 8",
-        expectedOutput: "[1,3]",
-        explanation: "nums[1] + nums[3] = 5 + 7 = 12, but nums[0] + nums[3] = 1 + 7 = 8"
+        expectedOutput: "[1,2]",
+        explanation: "nums[1] + nums[2] = 5 + 3 = 8"
       }
     ]
   },
@@ -35,11 +35,6 @@ const questionTestCases = [
         explanation: "Subarray [4,-1,2,1] has the largest sum = 6"
       },
       {
-        input: "[1]",
-        expectedOutput: "1",
-        explanation: "Single element array"
-      },
-      {
         input: "[5,4,-1,7,8]",
         expectedOutput: "23",
         explanation: "Entire array has positive sum"
@@ -48,6 +43,16 @@ const questionTestCases = [
         input: "[-2,-1]",
         expectedOutput: "-1",
         explanation: "Best single element when all negative"
+      },
+      {
+        input: "[1,2,3,4,5]",
+        expectedOutput: "15",
+        explanation: "All positive numbers, sum entire array"
+      },
+      {
+        input: "[-1]",
+        expectedOutput: "-1",
+        explanation: "Single negative element"
       }
     ]
   },
@@ -235,24 +240,24 @@ const questionTestCases = [
     id: 10,
     testCases: [
       {
-        input: "[3,2,0,-4] with cycle at position 1",
+        input: "[3,2,0,-4], 1",
         expectedOutput: "true",
-        explanation: "Tail connects to node at index 1"
+        explanation: "Tail connects to node at index 1 (cycle exists)"
       },
       {
-        input: "[1,2] with cycle at position 0",
+        input: "[1,2], 0",
         expectedOutput: "true",
-        explanation: "Tail connects to head"
+        explanation: "Tail connects to head (cycle exists)"
       },
       {
-        input: "[1] with no cycle",
+        input: "[1], -1",
         expectedOutput: "false",
         explanation: "Single node with no cycle"
       },
       {
-        input: "[1,2,3,4] with no cycle",
+        input: "[1,2,3,4], -1",
         expectedOutput: "false",
-        explanation: "Linear linked list"
+        explanation: "Linear linked list (no cycle)"
       }
     ]
   }
@@ -290,14 +295,12 @@ export async function addTestCasesToQuestions() {
 }
 
 // Run if executed directly
-if (require.main === module) {
-  addTestCasesToQuestions()
-    .then(() => {
-      console.log('✨ Test cases addition completed');
-      process.exit(0);
-    })
-    .catch((error) => {
-      console.error('💥 Test cases addition failed:', error);
-      process.exit(1);
-    });
-}
+addTestCasesToQuestions()
+  .then(() => {
+    console.log('✨ Test cases addition completed');
+    process.exit(0);
+  })
+  .catch((error) => {
+    console.error('💥 Test cases addition failed:', error);
+    process.exit(1);
+  });

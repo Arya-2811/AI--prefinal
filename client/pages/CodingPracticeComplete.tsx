@@ -359,7 +359,7 @@ export default function CodingPractice() {
       <div className="container mx-auto px-4 py-8">
         <div className="text-center mb-8">
           <h1 className="text-4xl font-bold mb-4">Coding Practice</h1>
-          <p className="text-xl text-gray-600">Master algorithms with 20+ curated problems</p>
+          <p className="text-xl text-gray-600">Master algorithms with 10 curated problems</p>
         </div>
         
         {/* Category Filter */}

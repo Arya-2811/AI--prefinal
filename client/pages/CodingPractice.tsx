@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
-import { CheckCircle, Clock, ArrowLeft, Play, Copy, RotateCcw, MessageCircle, Bot } from "lucide-react";
+import { CheckCircle, Clock, ArrowLeft, Play, Copy, RotateCcw, MessageCircle, Bot, RefreshCw, Lightbulb, BarChart3, Zap, AlertCircle, CheckCircle2, XCircle, History } from "lucide-react";
 import AIEditor from "@/features/ai-coding/AIEditor";
 import ChatbotWidget from "@/features/ai-chatbot/ChatbotWidget";
+import SubmissionHistory from "@/components/SubmissionHistory";
 
 interface CodingQuestion {
   id: number;
@@ -41,6 +42,96 @@ export default function CodingPractice() {
   const [editorOutput, setEditorOutput] = useState<string>('');
   const [editorError, setEditorError] = useState<string>('');
   const [isCodeRunning, setIsCodeRunning] = useState<boolean>(false);
+  const [aiHints, setAiHints] = useState<any[]>([]);
+  const [showAiHints, setShowAiHints] = useState<boolean>(false);
+  const [codeAnalysis, setCodeAnalysis] = useState<any>(null);
+  const [aiFeedback, setAiFeedback] = useState<any>(null);
+  const [showAiFeedback, setShowAiFeedback] = useState<boolean>(false);
+  const [lastTestResults, setLastTestResults] = useState<any[]>([]);
+  const [activeTab, setActiveTab] = useState<'problem' | 'submissions'>('problem');
+  const [currentUserId] = useState<string>('demo-user'); // In real app, get from auth context
+
+  // Function to refresh/clear the output
+  const refreshOutput = () => {
+    setEditorOutput('');
+    setEditorError('');
+    setIsCodeRunning(false);
+  };
+
+  // Get AI hints for the current problem
+  const getAIHints = async () => {
+    if (!selectedQuestion) return;
+    
+    try {
+      const response = await fetch('/api/ai/hints', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          questionId: selectedQuestion.id,
+          userCode: currentCode,
+          language: language
+        })
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        setAiHints(data.hints || []);
+        setShowAiHints(true);
+      }
+    } catch (error) {
+      console.error('Error getting AI hints:', error);
+    }
+  };
+
+  // Analyze current code
+  const analyzeCurrentCode = async () => {
+    if (!currentCode || !selectedQuestion) return;
+    
+    try {
+      const response = await fetch('/api/ai/analyze', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          code: currentCode,
+          language: language,
+          questionType: selectedQuestion.title
+        })
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        setCodeAnalysis(data.analysis);
+      }
+    } catch (error) {
+      console.error('Error analyzing code:', error);
+    }
+  };
+
+  // Generate AI feedback after test results
+  const generateAIFeedback = async (testResults: any[]) => {
+    if (!selectedQuestion || !currentCode) return;
+    
+    try {
+      const response = await fetch('/api/ai/feedback', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          questionId: selectedQuestion.id,
+          testResults: testResults,
+          code: currentCode,
+          language: language
+        })
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        setAiFeedback(data.feedback);
+        setShowAiFeedback(true);
+      }
+    } catch (error) {
+      console.error('Error generating AI feedback:', error);
+    }
+  };
 
   useEffect(() => {
     document.title = "Coding Practice - AI Coding Platform";
@@ -116,7 +207,8 @@ export default function CodingPractice() {
         body: JSON.stringify({
           questionId: selectedQuestion.id,
           code: currentCode,
-          language: language
+          language: language,
+          userId: currentUserId
         })
       });
       
@@ -133,6 +225,10 @@ export default function CodingPractice() {
       });
       
       setTestResults(newResults);
+      setLastTestResults(result.results);
+      
+      // Generate AI feedback based on results
+      await generateAIFeedback(result.results);
       
       // Show overall result
       if (result.status === 'Accepted') {
@@ -164,9 +260,39 @@ export default function CodingPractice() {
             </button>
           </div>
           
-          <div className="grid lg:grid-cols-2 gap-8">
-            {/* Problem Description */}
-            <div className="bg-white rounded-lg shadow-sm border p-6">
+          {/* Tab Navigation */}
+          <div className="mb-6">
+            <div className="border-b border-gray-200">
+              <nav className="-mb-px flex space-x-8">
+                <button
+                  onClick={() => setActiveTab('problem')}
+                  className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                    activeTab === 'problem'
+                      ? 'border-primary text-primary'
+                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  }`}
+                >
+                  Problem
+                </button>
+                <button
+                  onClick={() => setActiveTab('submissions')}
+                  className={`py-2 px-1 border-b-2 font-medium text-sm flex items-center gap-2 ${
+                    activeTab === 'submissions'
+                      ? 'border-primary text-primary'
+                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  }`}
+                >
+                  <History className="w-4 h-4" />
+                  Submissions
+                </button>
+              </nav>
+            </div>
+          </div>
+
+          {activeTab === 'problem' ? (
+            <div className="grid lg:grid-cols-2 gap-8">
+              {/* Problem Description */}
+              <div className="bg-white rounded-lg shadow-sm border p-6">
               <div className="flex items-center gap-3 mb-4">
                 <h1 className="text-2xl font-bold">{selectedQuestion.id}. {selectedQuestion.title}</h1>
                 <span className={`px-3 py-1 rounded-full text-sm font-medium ${getDifficultyColor(selectedQuestion.difficulty)}`}>
@@ -218,22 +344,41 @@ export default function CodingPractice() {
             <div className="bg-white rounded-lg shadow-sm border p-6">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="font-semibold">Solution</h3>
-                <select
-                  value={language}
-                  onChange={(e) => setLanguage(e.target.value as any)}
-                  className="border rounded px-3 py-1 text-sm"
-                >
-                  <option value="javascript">JavaScript</option>
-                  <option value="python">Python</option>
-                  <option value="cpp">C++</option>
-                  <option value="java">Java</option>
-                </select>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={getAIHints}
+                    className="flex items-center gap-1 px-3 py-1 text-sm bg-blue-100 text-blue-700 rounded hover:bg-blue-200 transition-colors"
+                    title="Get AI hints"
+                  >
+                    <Lightbulb className="w-4 h-4" />
+                    Hints
+                  </button>
+                  <button
+                    onClick={analyzeCurrentCode}
+                    className="flex items-center gap-1 px-3 py-1 text-sm bg-purple-100 text-purple-700 rounded hover:bg-purple-200 transition-colors"
+                    title="Analyze code"
+                    disabled={!currentCode}
+                  >
+                    <BarChart3 className="w-4 h-4" />
+                    Analyze
+                  </button>
+                  <select
+                    value={language}
+                    onChange={(e) => setLanguage(e.target.value as any)}
+                    className="border rounded px-3 py-1 text-sm"
+                  >
+                    <option value="javascript">JavaScript</option>
+                    <option value="python">Python</option>
+                    <option value="cpp">C++</option>
+                    <option value="java">Java</option>
+                  </select>
+                </div>
               </div>
               
               {/* Code Editor and Output Split Layout */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 h-96">
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 h-[600px]">
                 {/* Code Editor - Left Side */}
-                <div className="h-full">
+                <div className="h-full lg:col-span-2">
                   <AIEditor 
                     language={language} 
                     initialCode={selectedQuestion.starterCode[language]}
@@ -251,7 +396,16 @@ export default function CodingPractice() {
                 <div className="h-full border rounded-lg bg-gray-50 flex flex-col">
                   <div className="flex items-center justify-between p-3 border-b bg-white rounded-t-lg">
                     <h4 className="font-semibold text-gray-700">Output</h4>
-                    <span className="text-xs text-gray-500">Run your code to see results</span>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={refreshOutput}
+                        className="p-1 hover:bg-gray-100 rounded transition-colors"
+                        title="Clear output"
+                      >
+                        <RefreshCw className="w-4 h-4 text-gray-500" />
+                      </button>
+                      <span className="text-xs text-gray-500">Run your code to see results</span>
+                    </div>
                   </div>
                   <div className="flex-1 p-4 overflow-auto">
                     {editorError ? (
@@ -325,39 +479,225 @@ export default function CodingPractice() {
                     </button>
                   </div>
                   <div className="space-y-3">
-                    {selectedQuestion.testCases.map((testCase, index) => (
-                      <div key={index} className={`p-3 rounded border ${getTestCaseStyle(index)}`}>
-                        <div className="text-sm">
-                          <div className="flex items-center justify-between mb-2">
-                            <span className="font-medium text-gray-700">Test Case {index + 1}</span>
-                            {getTestCaseStatusIcon(index)}
-                          </div>
-                          <div className="mb-1">
-                            <span className="font-medium text-gray-700">Input:</span>
-                            <code className="ml-2 px-2 py-1 bg-gray-100 rounded text-xs">{testCase.input}</code>
-                          </div>
-                          <div className="mb-1">
-                            <span className="font-medium text-gray-700">Expected Output:</span>
-                            <code className="ml-2 px-2 py-1 bg-gray-100 rounded text-xs">{testCase.expectedOutput}</code>
-                          </div>
-                          {testResults[index] === 'failed' && (
-                            <div className="mb-1">
-                              <span className="font-medium text-red-700">Actual Output:</span>
-                              <code className="ml-2 px-2 py-1 bg-red-100 rounded text-xs">
-                                {/* This would show the actual output from the judge result */}
-                                Check console for details
-                              </code>
+                    {selectedQuestion.testCases.map((testCase, index) => {
+                      const testResult = lastTestResults.find(r => r.testCaseIndex === index);
+                      return (
+                        <div key={index} className={`p-3 rounded border ${getTestCaseStyle(index)}`}>
+                          <div className="text-sm">
+                            <div className="flex items-center justify-between mb-2">
+                              <span className="font-medium text-gray-700">Test Case {index + 1}</span>
+                              <div className="flex items-center gap-2">
+                                {testResult && (
+                                  <span className="text-xs text-gray-500">
+                                    {testResult.executionTime}ms
+                                  </span>
+                                )}
+                                {getTestCaseStatusIcon(index)}
+                              </div>
                             </div>
-                          )}
-                          <div className="text-gray-600 text-xs">{testCase.explanation}</div>
+                            <div className="mb-1">
+                              <span className="font-medium text-gray-700">Input:</span>
+                              <code className="ml-2 px-2 py-1 bg-gray-100 rounded text-xs">{testCase.input}</code>
+                            </div>
+                            <div className="mb-1">
+                              <span className="font-medium text-gray-700">Expected Output:</span>
+                              <code className="ml-2 px-2 py-1 bg-gray-100 rounded text-xs">{testCase.expectedOutput}</code>
+                            </div>
+                            {testResults[index] === 'failed' && testResult && (
+                              <div className="mb-1">
+                                <span className="font-medium text-red-700">Actual Output:</span>
+                                <code className="ml-2 px-2 py-1 bg-red-100 rounded text-xs">
+                                  {testResult.actualOutput}
+                                </code>
+                              </div>
+                            )}
+                            {testResult?.error && (
+                              <div className="mb-1">
+                                <span className="font-medium text-red-700">Error:</span>
+                                <code className="ml-2 px-2 py-1 bg-red-100 rounded text-xs">
+                                  {testResult.error}
+                                </code>
+                              </div>
+                            )}
+                            <div className="text-gray-600 text-xs">{testCase.explanation}</div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* AI Code Analysis Panel */}
+              {codeAnalysis && (
+                <div className="mt-4 p-4 bg-purple-50 rounded border border-purple-200">
+                  <div className="flex items-center justify-between mb-3">
+                    <h4 className="font-semibold text-purple-800 flex items-center gap-2">
+                      <BarChart3 className="w-4 h-4" />
+                      Code Analysis
+                    </h4>
+                    <button
+                      onClick={() => setCodeAnalysis(null)}
+                      className="text-purple-600 hover:text-purple-800"
+                    >
+                      ×
+                    </button>
+                  </div>
+                  <div className="space-y-2 text-sm">
+                    <div>
+                      <span className="font-medium text-purple-700">Time Complexity:</span>
+                      <span className="ml-2 px-2 py-1 bg-purple-100 rounded text-xs">{codeAnalysis.timeComplexity}</span>
+                    </div>
+                    <div>
+                      <span className="font-medium text-purple-700">Space Complexity:</span>
+                      <span className="ml-2 px-2 py-1 bg-purple-100 rounded text-xs">{codeAnalysis.spaceComplexity}</span>
+                    </div>
+                    <div>
+                      <span className="font-medium text-purple-700">Approach:</span>
+                      <span className="ml-2 text-purple-600">{codeAnalysis.approach}</span>
+                    </div>
+                    {codeAnalysis.suggestions.length > 0 && (
+                      <div>
+                        <span className="font-medium text-purple-700">Suggestions:</span>
+                        <ul className="ml-4 mt-1 list-disc text-purple-600">
+                          {codeAnalysis.suggestions.map((suggestion: string, idx: number) => (
+                            <li key={idx}>{suggestion}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                    {codeAnalysis.potentialIssues.length > 0 && (
+                      <div>
+                        <span className="font-medium text-red-700">Potential Issues:</span>
+                        <ul className="ml-4 mt-1 list-disc text-red-600">
+                          {codeAnalysis.potentialIssues.map((issue: string, idx: number) => (
+                            <li key={idx}>{issue}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* AI Feedback Panel */}
+              {showAiFeedback && aiFeedback && (
+                <div className="mt-4 p-4 bg-gradient-to-r from-blue-50 to-green-50 rounded border border-blue-200">
+                  <div className="flex items-center justify-between mb-3">
+                    <h4 className="font-semibold text-blue-800 flex items-center gap-2">
+                      <Zap className="w-4 h-4" />
+                      AI Feedback
+                    </h4>
+                    <button
+                      onClick={() => setShowAiFeedback(false)}
+                      className="text-blue-600 hover:text-blue-800"
+                    >
+                      ×
+                    </button>
+                  </div>
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2">
+                      {aiFeedback.isCorrect ? (
+                        <CheckCircle2 className="w-5 h-5 text-green-600" />
+                      ) : (
+                        <XCircle className="w-5 h-5 text-red-600" />
+                      )}
+                      <span className="font-medium">Score: {aiFeedback.score}%</span>
+                    </div>
+                    <p className="text-gray-700">{aiFeedback.feedback}</p>
+                    
+                    {aiFeedback.hints && aiFeedback.hints.length > 0 && (
+                      <div>
+                        <h5 className="font-medium text-blue-700 mb-2">💡 Hints:</h5>
+                        <div className="space-y-2">
+                          {aiFeedback.hints.map((hint: any, idx: number) => (
+                            <div key={idx} className="p-2 bg-white rounded border">
+                              <div className="font-medium text-sm text-blue-600">{hint.title}</div>
+                              <div className="text-sm text-gray-600 mt-1">{hint.content}</div>
+                              {hint.codeExample && (
+                                <pre className="mt-2 p-2 bg-gray-100 rounded text-xs overflow-auto">
+                                  {hint.codeExample}
+                                </pre>
+                              )}
+                            </div>
+                          ))}
                         </div>
                       </div>
-                    ))}
+                    )}
+                    
+                    {aiFeedback.nextSteps && aiFeedback.nextSteps.length > 0 && (
+                      <div>
+                        <h5 className="font-medium text-green-700 mb-2">🎯 Next Steps:</h5>
+                        <ul className="list-disc list-inside text-sm text-gray-600 space-y-1">
+                          {aiFeedback.nextSteps.map((step: string, idx: number) => (
+                            <li key={idx}>{step}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
             </div>
           </div>
+          ) : (
+            // Submissions Tab
+            <div className="bg-white rounded-lg shadow-sm border">
+              <SubmissionHistory 
+                userId={currentUserId} 
+                questionId={selectedQuestion.id}
+                showProgress={false}
+              />
+            </div>
+          )}
+
+          {/* AI Hints Sidebar - Outside of tabs */}
+          {showAiHints && aiHints.length > 0 && (
+            <div className="mt-8 bg-white rounded-lg shadow-sm border p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="font-semibold text-blue-800 flex items-center gap-2">
+                  <Lightbulb className="w-5 h-5" />
+                  AI Hints & Tips
+                </h3>
+                <button
+                  onClick={() => setShowAiHints(false)}
+                  className="text-blue-600 hover:text-blue-800"
+                >
+                  ×
+                </button>
+              </div>
+              <div className="space-y-4">
+                {aiHints.map((hint, idx) => (
+                  <div key={idx} className="p-4 border rounded-lg">
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className={`px-2 py-1 rounded text-xs font-medium ${
+                        hint.type === 'approach' ? 'bg-blue-100 text-blue-700' :
+                        hint.type === 'optimization' ? 'bg-green-100 text-green-700' :
+                        hint.type === 'debugging' ? 'bg-red-100 text-red-700' :
+                        'bg-gray-100 text-gray-700'
+                      }`}>
+                        {hint.type}
+                      </span>
+                      <span className={`px-2 py-1 rounded text-xs ${
+                        hint.difficulty === 'beginner' ? 'bg-green-100 text-green-600' :
+                        hint.difficulty === 'intermediate' ? 'bg-yellow-100 text-yellow-600' :
+                        'bg-red-100 text-red-600'
+                      }`}>
+                        {hint.difficulty}
+                      </span>
+                    </div>
+                    <h4 className="font-medium text-gray-800 mb-2">{hint.title}</h4>
+                    <p className="text-gray-600 text-sm mb-3">{hint.content}</p>
+                    {hint.codeExample && (
+                      <pre className="p-3 bg-gray-100 rounded text-xs overflow-auto">
+                        {hint.codeExample}
+                      </pre>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
         
         {/* Floating AI Assistant Button */}
@@ -402,7 +742,7 @@ export default function CodingPractice() {
       <div className="container mx-auto px-4 py-8">
         <div className="text-center mb-8">
           <h1 className="text-4xl font-bold mb-4">Coding Practice</h1>
-          <p className="text-xl text-gray-600">Master algorithms with 20+ curated problems</p>
+          <p className="text-xl text-gray-600">Master algorithms with 10 curated problems</p>
         </div>
         
         {/* Loading State */}

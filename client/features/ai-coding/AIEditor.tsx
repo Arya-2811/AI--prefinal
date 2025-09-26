@@ -3,7 +3,7 @@ import { track } from "@/services/auth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Play, Copy, Download, RotateCcw, Settings, Zap, Cloud, Terminal, Globe } from "lucide-react";
+import { Play, Copy, Download, RotateCcw, Settings, Zap, Cloud, Terminal, Globe, RefreshCw } from "lucide-react";
 
 const COMMON_DOCS: Record<string, string> = {
   console: "Console provides access to the browser debugging console.",
@@ -735,6 +735,16 @@ export default function AIEditor({ language, initialCode, onCodeChange, onOutput
     setNextLineSuggestion("");
   }
 
+  function refreshOutput() {
+    setOutput("");
+    setError("");
+    setWaitingForInput(false);
+    setInputHistory([]);
+    setUserInput("");
+    setInputPrompt("");
+    onOutputChange?.("", "");
+  }
+
   function downloadCode() {
     const extensions = { javascript: 'js', python: 'py', cpp: 'cpp', java: 'java' };
     const ext = extensions[language as keyof typeof extensions] || 'txt';
@@ -878,8 +888,8 @@ export default function AIEditor({ language, initialCode, onCodeChange, onOutput
           {nextLineSuggestion && <Badge variant="outline" className="text-xs">Ctrl+Enter for template</Badge>}
         </div>
       </div>
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-0">
-        <div className="lg:col-span-2 space-y-3 p-3">
+      <div className={`grid gap-0 ${hideOutput ? 'grid-cols-1' : 'grid-cols-1 lg:grid-cols-3'}`}>
+        <div className={`space-y-3 p-3 ${hideOutput ? '' : 'lg:col-span-2'}`}>
           <div className="code-editor-container">
             <div className="flex">
               {showLineNumbers && (
@@ -923,15 +933,26 @@ export default function AIEditor({ language, initialCode, onCodeChange, onOutput
           {!hideOutput && (output || error) && (
             <Card>
               <CardHeader>
-                <CardTitle className="text-sm flex items-center gap-2">
-                  Output
-                  {error ? (
-                    <Badge variant="destructive" className="text-xs">Error</Badge>
-                  ) : waitingForInput ? (
-                    <Badge variant="outline" className="text-xs">Waiting for Input</Badge>
-                  ) : (
-                    <Badge variant="secondary" className="text-xs">Success</Badge>
-                  )}
+                <CardTitle className="text-sm flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    Output
+                    {error ? (
+                      <Badge variant="destructive" className="text-xs">Error</Badge>
+                    ) : waitingForInput ? (
+                      <Badge variant="outline" className="text-xs">Waiting for Input</Badge>
+                    ) : (
+                      <Badge variant="secondary" className="text-xs">Success</Badge>
+                    )}
+                  </div>
+                  <Button
+                    onClick={refreshOutput}
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 w-6 p-0"
+                    title="Clear output"
+                  >
+                    <RefreshCw className="w-3 h-3" />
+                  </Button>
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -994,14 +1015,16 @@ export default function AIEditor({ language, initialCode, onCodeChange, onOutput
             </Card>
           )}
         </div>
-        <div className="border-t lg:border-l lg:border-t-0 p-3 bg-secondary/30 space-y-4">
-          {doc && (
-            <div>
-              <h4 className="font-semibold mb-2">Inline Docs</h4>
-              <p className="text-sm text-foreground/80">{doc}</p>
-            </div>
-          )}
-        </div>
+        {!hideOutput && (
+          <div className="border-t lg:border-l lg:border-t-0 p-3 bg-secondary/30 space-y-4">
+            {doc && (
+              <div>
+                <h4 className="font-semibold mb-2">Inline Docs</h4>
+                <p className="text-sm text-foreground/80">{doc}</p>
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
