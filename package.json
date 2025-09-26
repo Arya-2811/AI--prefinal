@@ -18,11 +18,13 @@
     "start": "node dist/server/node-build.mjs",
     "test": "vitest --run",
     "format.fix": "prettier --write .",
-    "typecheck": "tsc"
+    "typecheck": "tsc",
+    "seed:questions": "tsx server/scripts/seedQuestions.ts"
   },
   "dependencies": {
     "dotenv": "^17.2.1",
     "express": "^5.1.0",
+    "mongodb": "^6.3.0",
     "zod": "^3.25.76"
   },
   "devDependencies": {

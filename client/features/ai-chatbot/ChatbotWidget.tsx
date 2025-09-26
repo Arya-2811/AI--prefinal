@@ -1,7 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 import { Bot, Mic, MicOff, Send } from "lucide-react";
 
-export default function ChatbotWidget() {
+interface ChatbotWidgetProps {
+  context?: string;
+}
+
+export default function ChatbotWidget({ context }: ChatbotWidgetProps = {}) {
   const [input, setInput] = useState("");
   const [messages, setMessages] = useState<{ role: "user" | "assistant"; text: string }[]>([]);
   const [listening, setListening] = useState(false);
@@ -21,7 +25,10 @@ export default function ChatbotWidget() {
       const res = await fetch("/api/chat", { 
         method: "POST", 
         headers: { "Content-Type": "application/json" }, 
-        body: JSON.stringify({ message: text }) 
+        body: JSON.stringify({ 
+          message: text,
+          context: context 
+        }) 
       });
       
       if (!res.ok) {

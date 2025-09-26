@@ -29,8 +29,16 @@ const LANGUAGE_WORDS: Record<string, string[]> = {
 
 type ExecutionMode = 'local' | 'online' | 'docker';
 
-export default function AIEditor({ language }: { language: string }) {
-  const [code, setCode] = useState("");
+interface AIEditorProps {
+  language: string;
+  initialCode?: string;
+  onCodeChange?: (code: string) => void;
+  onOutputChange?: (output: string, error: string) => void;
+  hideOutput?: boolean;
+}
+
+export default function AIEditor({ language, initialCode, onCodeChange, onOutputChange, hideOutput = false }: AIEditorProps) {
+  const [code, setCode] = useState(initialCode || "");
   const [suggestion, setSuggestion] = useState("");
   const [cursorWord, setCursorWord] = useState("");
   const [nextLineSuggestion, setNextLineSuggestion] = useState("");
@@ -53,6 +61,13 @@ export default function AIEditor({ language }: { language: string }) {
     setOutput("");
     setError("");
   }, [language]);
+
+  // Update code when initialCode changes (e.g., when switching languages)
+  useEffect(() => {
+    if (initialCode !== undefined) {
+      setCode(initialCode);
+    }
+  }, [initialCode]);
 
   function computeNextLine(word: string) {
     if (!word) return "";
@@ -90,6 +105,7 @@ export default function AIEditor({ language }: { language: string }) {
 
   function onChange(v: string) {
     setCode(v);
+    onCodeChange?.(v); // Notify parent component of code changes
     const beforeCursor = v.slice(0, taRef.current?.selectionStart ?? v.length);
     const last = beforeCursor.split(/\s|\n|\t/).pop() || "";
     setCursorWord(last);
@@ -462,7 +478,8 @@ export default function AIEditor({ language }: { language: string }) {
   async function runCode() {
     setIsRunning(true);
     setError("");
-    setOutput("");
+    setOutput("Running your code...");
+    onOutputChange?.("Running your code...", "");
     setWaitingForInput(false);
     setInputHistory([]);
     setUserInput("");
@@ -553,14 +570,37 @@ export default function AIEditor({ language }: { language: string }) {
             }
           }
           
-          setOutput(capturedOutput || "Code executed successfully (no output)");
+          let finalOutput;
+          if (capturedOutput.trim()) {
+            finalOutput = capturedOutput;
+          } else {
+            // Check if the code has any meaningful content
+            const codeLines = code.split('\n').filter(line => 
+              line.trim() && 
+              !line.trim().startsWith('//') && 
+              !line.trim().startsWith('/*') &&
+              line.trim() !== '{' &&
+              line.trim() !== '}'
+            );
+            
+            if (codeLines.length <= 2) {
+              finalOutput = "⚠️ Your code appears to be empty or incomplete.\nTry adding some logic inside your function and use console.log() to see output.";
+            } else {
+              finalOutput = "✅ Code executed successfully!\n💡 Tip: Use console.log() to display output, or return a value from your function.";
+            }
+          }
+          setOutput(finalOutput);
+          onOutputChange?.(finalOutput, "");
         } catch (err: any) {
-          setError(`Error: ${err.message}`);
+          const errorMsg = `Error: ${err.message}`;
+          setError(errorMsg);
+          onOutputChange?.("", errorMsg);
         } finally {
           // Restore original console methods
           console.log = originalLog;
           console.warn = originalWarn;
           console.error = originalError;
+          setIsRunning(false);
         }
       } else if (language === "python") {
         // Python simulation for basic code patterns
@@ -880,7 +920,7 @@ export default function AIEditor({ language }: { language: string }) {
             </div>
           </div>
           
-          {(output || error || waitingForInput) && (
+          {!hideOutput && (output || error) && (
             <Card>
               <CardHeader>
                 <CardTitle className="text-sm flex items-center gap-2">

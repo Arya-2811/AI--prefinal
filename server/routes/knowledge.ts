@@ -35,10 +35,10 @@ export const listTemplates: RequestHandler = (req, res) => {
   res.json({ templates: filtered.sort((a, b) => b.updatedAt - a.updatedAt) });
 };
 
-export const createTemplate: RequestHandler = (req, res) => {
+export const createTemplate: RequestHandler = async (req, res) => {
   const auth = req.headers.authorization;
   const token = auth?.replace("Bearer ", "");
-  const user = getUserByToken(token);
+  const user = await getUserByToken(token);
   if (!user || user.role !== "Admin") return res.status(403).json({ error: "Forbidden" });
   const { title, content, category, tags } = req.body as { title?: string; content?: string; category?: string; tags?: string[] };
   if (!title || !content || !category) return res.status(400).json({ error: "Missing fields" });
@@ -55,10 +55,10 @@ export const createTemplate: RequestHandler = (req, res) => {
   res.status(201).json({ template: t });
 };
 
-export const updateTemplate: RequestHandler = (req, res) => {
+export const updateTemplate: RequestHandler = async (req, res) => {
   const auth = req.headers.authorization;
   const token = auth?.replace("Bearer ", "");
-  const user = getUserByToken(token);
+  const user = await getUserByToken(token);
   if (!user || user.role !== "Admin") return res.status(403).json({ error: "Forbidden" });
   const id = req.params.id;
   const idx = templates.findIndex((t) => t.id === id);

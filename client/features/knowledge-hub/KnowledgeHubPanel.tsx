@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { RoleGate } from "@/services/role-based-access";
 import { useAuth } from "@/services/auth-context";
 import { health, getJSON } from "@/services/api-client";
+import { Code } from "lucide-react";
 
 interface Template { id: string; title: string; content: string; category: string; tags: string[]; updatedAt: number }
 
@@ -73,28 +74,23 @@ export default function KnowledgeHubPanel() {
       </div>
 
       <div className="mt-6">
-        <h4 className="font-semibold mb-3">Practice on coding platforms</h4>
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          {[
-            { name: "LeetCode", url: "https://leetcode.com/" },
-            { name: "HackerRank", url: "https://www.hackerrank.com/" },
-            { name: "CodeSignal", url: "https://codesignal.com/" },
-            { name: "Codeforces", url: "https://codeforces.com/" },
-            { name: "Exercism", url: "https://exercism.org/" },
-            { name: "GeeksforGeeks", url: "https://www.geeksforgeeks.org/" },
-            { name: "InterviewBit", url: "https://www.interviewbit.com/" },
-          ].map((p) => (
-            <a
-              key={p.name}
-              href={p.url}
-              target="_blank"
-              rel="noreferrer"
-              className="rounded-md border p-3 hover:bg-accent hover:text-accent-foreground transition-colors"
-            >
-              <div className="font-medium">{p.name}</div>
-              <div className="text-xs text-foreground/70 break-all">{p.url}</div>
-            </a>
-          ))}
+        <h4 className="font-semibold mb-3">Practice Coding Problems</h4>
+        <div className="grid gap-3">
+          <a
+            href="/coding-practice"
+            className="rounded-md border p-4 hover:bg-accent hover:text-accent-foreground transition-colors bg-gradient-to-r from-primary/5 to-indigo-100/30"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center">
+                <Code className="w-6 h-6 text-primary" />
+              </div>
+              <div>
+                <div className="font-medium text-lg">Built-in Coding Practice</div>
+                <div className="text-sm text-foreground/70">20+ curated coding problems with AI-powered editor</div>
+                <div className="text-xs text-primary mt-1">Arrays • Strings • Trees • Dynamic Programming</div>
+              </div>
+            </div>
+          </a>
         </div>
       </div>
     </div>

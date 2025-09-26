@@ -25,7 +25,7 @@ const FAQ: { pattern: RegExp; answer: string }[] = [
   { pattern: /auth|login|jwt/i, answer: "Use short-lived tokens, HTTPS, and rotate secrets. Never store passwords in plain text." },
 ];
 
-async function callGemini(message: string): Promise<string> {
+async function callGemini(message: string, context?: string): Promise<string> {
   try {
     const response = await fetch(`${GEMINI_API_URL}?key=${GEMINI_API_KEY}`, {
       method: "POST",
@@ -37,7 +37,7 @@ async function callGemini(message: string): Promise<string> {
           {
             parts: [
               {
-                text: `${SYSTEM_PROMPT}\n\nUser: ${message}`
+                text: `${SYSTEM_PROMPT}${context ? `\n\nContext: ${context}` : ''}\n\nUser: ${message}`
               }
             ]
           }
@@ -69,7 +69,7 @@ async function callGemini(message: string): Promise<string> {
 }
 
 export const chat: RequestHandler = async (req, res) => {
-  const { message } = req.body as { message?: string };
+  const { message, context } = req.body as { message?: string; context?: string };
   const start = Date.now();
   
   if (!message || !message.trim()) {
@@ -81,7 +81,7 @@ export const chat: RequestHandler = async (req, res) => {
 
   try {
     // Try Gemini API first
-    const answer = await callGemini(message.trim());
+    const answer = await callGemini(message.trim(), context);
     const latency = Date.now() - start;
     trackEvent("queries");
     res.json({ answer, latency });

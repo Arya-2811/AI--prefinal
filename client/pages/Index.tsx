@@ -1,12 +1,25 @@
 import { DemoResponse } from "@shared/api";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/services/auth-context";
+import { useNavigate } from "react-router-dom";
 import { Code, Sparkles, Zap, Users, Brain, Rocket, Play, ChevronRight, Star, GitBranch, Terminal, Bot } from "lucide-react";
 
 export default function Index() {
   const { user } = useAuth();
 
-  useEffect(() => { document.title = "CodePilot AI — AI-Powered Coding Assistant"; }, []);
+  useEffect(() => { 
+    document.title = "CodePilot AI — AI-Powered Coding Assistant"; 
+    
+    // Check if URL has #auth hash and scroll to auth section
+    if (window.location.hash === '#auth') {
+      setTimeout(() => {
+        const authSection = document.getElementById('auth');
+        if (authSection) {
+          authSection.scrollIntoView({ behavior: 'smooth' });
+        }
+      }, 100); // Small delay to ensure DOM is ready
+    }
+  }, []);
 
   return (
     <div className="relative min-h-screen">
@@ -44,14 +57,25 @@ export default function Index() {
             
             {/* CTA Buttons */}
             <div className="flex flex-col sm:flex-row gap-4 justify-center items-center pt-4">
-              <a 
-                href="/dashboard" 
+              <button 
+                onClick={() => {
+                  if (user) {
+                    // User is authenticated, go to dashboard
+                    window.location.href = '/dashboard';
+                  } else {
+                    // User not authenticated, scroll to sign-in section
+                    const authSection = document.getElementById('auth');
+                    if (authSection) {
+                      authSection.scrollIntoView({ behavior: 'smooth' });
+                    }
+                  }
+                }}
                 className="group inline-flex items-center gap-2 bg-primary text-primary-foreground px-8 py-4 rounded-xl font-semibold text-lg hover:bg-primary/90 transition-all duration-300 hover:scale-105 shadow-lg hover:shadow-xl"
               >
                 <Rocket className="w-5 h-5 group-hover:animate-bounce" />
-                Launch Dashboard
+                {user ? 'Launch Dashboard' : 'Get Started'}
                 <ChevronRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-              </a>
+              </button>
               <a 
                 href="#demo" 
                 className="group inline-flex items-center gap-2 border-2 border-primary text-primary px-8 py-4 rounded-xl font-semibold text-lg hover:bg-primary hover:text-primary-foreground transition-all duration-300 hover:scale-105"
@@ -227,19 +251,38 @@ function Feature({ title, desc }: { title: string; desc: string }) {
 
 function AuthCard() {
   const { user, signin, signup, signout } = useAuth();
+  const navigate = useNavigate();
   const [mode, setMode] = useState<"login" | "signup">("login");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [role, setRole] = useState("Developer");
   const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
 
   async function onSubmit(e: React.FormEvent) {
-    e.preventDefault(); setError(null);
+    e.preventDefault(); 
+    setError(null);
+    setLoading(true);
+    
     try {
-      if (mode === "login") await signin(email, password); else await signup(name, email, password, role as any);
-      setName(""); setEmail(""); setPassword("");
-    } catch (err: any) { setError("Authentication failed"); }
+      if (mode === "login") {
+        await signin(email, password);
+      } else {
+        await signup(name, email, password, role as any);
+      }
+      
+      setName(""); 
+      setEmail(""); 
+      setPassword("");
+      
+      // Redirect to dashboard after successful authentication
+      navigate("/dashboard");
+    } catch (err: any) { 
+      setError("Authentication failed. Please check your credentials.");
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
@@ -257,7 +300,12 @@ function AuthCard() {
         <div className="space-y-3">
           <p className="text-sm">Signed in as <span className="font-medium">{user.name}</span> · <span className="uppercase text-xs">{user.role}</span></p>
           <div className="flex gap-2">
-            <a href="/dashboard" className="rounded-md bg-primary text-primary-foreground px-4 py-2">Go to Dashboard</a>
+            <button 
+              onClick={() => navigate("/dashboard")} 
+              className="rounded-md bg-primary text-primary-foreground px-4 py-2"
+            >
+              Go to Dashboard
+            </button>
             <button onClick={signout} className="rounded-md border px-4 py-2">Logout</button>
           </div>
         </div>
@@ -277,7 +325,16 @@ function AuthCard() {
           <input className="w-full rounded-md border px-3 py-2" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} />
           <input type="password" className="w-full rounded-md border px-3 py-2" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} />
           {error && <p className="text-sm text-red-600">{error}</p>}
-          <button type="submit" className="rounded-md bg-primary text-primary-foreground px-4 py-2 w-full">{mode === "login" ? "Login" : "Create account"}</button>
+          <button 
+            type="submit" 
+            disabled={loading}
+            className="rounded-md bg-primary text-primary-foreground px-4 py-2 w-full disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+          >
+            {loading && (
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+            )}
+            {loading ? "Signing in..." : (mode === "login" ? "Login" : "Create account")}
+          </button>
           <p className="text-xs text-foreground/60">Tip: use admin@codepilot.local / admin for an Admin demo account.</p>
         </form>
       )}

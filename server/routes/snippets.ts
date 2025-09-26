@@ -28,10 +28,10 @@ export const listSnippets: RequestHandler = (req, res) => {
   res.json({ snippets: filtered.sort((a, b) => b.createdAt - a.createdAt) });
 };
 
-export const createSnippet: RequestHandler = (req, res) => {
+export const createSnippet: RequestHandler = async (req, res) => {
   const auth = req.headers.authorization;
   const token = auth?.replace("Bearer ", "");
-  const user = getUserByToken(token);
+  const user = await getUserByToken(token);
   if (!user) return res.status(401).json({ error: "Unauthorized" });
   const { content, language, tags } = req.body as { content?: string; language?: string; tags?: string[] };
   if (!content || !language) return res.status(400).json({ error: "Missing fields" });
