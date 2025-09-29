@@ -49,8 +49,21 @@ import { connectToDatabase } from "./config/database";
 export function createServer() {
   const app = express();
 
+  // CORS Configuration for production deployment
+  const corsOptions = {
+    origin: process.env.NODE_ENV === 'production' 
+      ? [
+          process.env.FRONTEND_URL || 'https://your-deployed-site.netlify.app',
+          // Add other allowed origins here
+        ]
+      : true, // Allow all origins in development
+    credentials: true, // Allow cookies and auth headers
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+  };
+
   // Middleware
-  app.use(cors());
+  app.use(cors(corsOptions));
   app.use(express.json());
   app.use(express.urlencoded({ extended: true }));
 
