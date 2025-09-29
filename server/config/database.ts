@@ -1,7 +1,11 @@
 import { MongoClient, Db } from 'mongodb';
 
-const MONGODB_URI = "mongodb+srv://aryadontulwar_db_user:Mindmap%402025@cluster0.com6rnn.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0";
-const DB_NAME = "ai_coding_platform";
+const MONGODB_URI = process.env.MONGODB_URI;
+const DB_NAME = process.env.MONGODB_DB_NAME || "ai_coding_platform";
+
+if (!MONGODB_URI) {
+  throw new Error('MONGODB_URI environment variable is not set');
+}
 
 let client: MongoClient | null = null;
 let db: Db | null = null;
